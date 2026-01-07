@@ -1,0 +1,766 @@
+openapi: 3.0.3
+info:
+  title: Flight Booking API
+  description: API for managing flight bookings, passengers, flights, airports, and airlines
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@flightbooking.com
+
+servers:
+  - url: https://api.flightbooking.com/v1
+    description: Production server
+  - url: https://staging-api.flightbooking.com/v1
+    description: Staging server
+
+tags:
+  - name: Flights
+    description: Flight search and management
+  - name: Bookings
+    description: Flight booking operations
+  - name: Passengers
+    description: Passenger information management
+  - name: Airports
+    description: Airport information
+  - name: Airlines
+    description: Airline information
+
+paths:
+  # Flights Resource
+  /flights:
+    get:
+      tags:
+        - Flights
+      summary: Search for flights
+      description: Search for available flights based on origin, destination, and date
+      operationId: searchFlights
+      parameters:
+        - name: origin
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Origin airport code (IATA)
+          example: JFK
+        - name: destination
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Destination airport code (IATA)
+          example: LAX
+        - name: departureDate
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Departure date
+          example: "2024-12-25"
+        - name: returnDate
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Return date for round trip
+          example: "2024-12-30"
+        - name: passengers
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+          description: Number of passengers
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  flights:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Flight'
+                  totalCount:
+                    type: integer
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /flights/{flightId}:
+    get:
+      tags:
+        - Flights
+      summary: Get flight details
+      description: Retrieve detailed information about a specific flight
+      operationId: getFlightById
+      parameters:
+        - name: flightId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique flight identifier
+          example: FL12345
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Flight'
+        '404':
+          description: Flight not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Bookings Resource
+  /bookings:
+    get:
+      tags:
+        - Bookings
+      summary: List bookings
+      description: Retrieve a list of all bookings for the authenticated user
+      operationId: listBookings
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [confirmed, pending, cancelled]
+          description: Filter by booking status
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  bookings:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      tags:
+        - Bookings
+      summary: Create a booking
+      description: Create a new flight booking
+      operationId: createBooking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Invalid booking request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /bookings/{bookingId}:
+    get:
+      tags:
+        - Bookings
+      summary: Get booking details
+      description: Retrieve details of a specific booking
+      operationId: getBookingById
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique booking identifier
+          example: BK789012
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Bookings
+      summary: Update booking
+      description: Update an existing booking
+      operationId: updateBooking
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique booking identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingRequest'
+      responses:
+        '200':
+          description: Booking updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Bookings
+      summary: Cancel booking
+      description: Cancel an existing booking
+      operationId: cancelBooking
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique booking identifier
+      responses:
+        '204':
+          description: Booking cancelled successfully
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Passengers Resource
+  /passengers:
+    get:
+      tags:
+        - Passengers
+      summary: List passengers
+      description: Retrieve a list of all passengers for the authenticated user
+      operationId: listPassengers
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  passengers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Passenger'
+
+    post:
+      tags:
+        - Passengers
+      summary: Add passenger
+      description: Add a new passenger profile
+      operationId: createPassenger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PassengerRequest'
+      responses:
+        '201':
+          description: Passenger created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Passenger'
+        '400':
+          description: Invalid passenger data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /passengers/{passengerId}:
+    get:
+      tags:
+        - Passengers
+      summary: Get passenger details
+      description: Retrieve details of a specific passenger
+      operationId: getPassengerById
+      parameters:
+        - name: passengerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique passenger identifier
+          example: PASS12345
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Passenger'
+        '404':
+          description: Passenger not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags:
+        - Passengers
+      summary: Update passenger
+      description: Update passenger information
+      operationId: updatePassenger
+      parameters:
+        - name: passengerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique passenger identifier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PassengerRequest'
+      responses:
+        '200':
+          description: Passenger updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Passenger'
+        '404':
+          description: Passenger not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Passengers
+      summary: Delete passenger
+      description: Delete a passenger profile
+      operationId: deletePassenger
+      parameters:
+        - name: passengerId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique passenger identifier
+      responses:
+        '204':
+          description: Passenger deleted successfully
+        '404':
+          description: Passenger not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Airports Resource
+  /airports:
+    get:
+      tags:
+        - Airports
+      summary: List airports
+      description: Retrieve a list of airports
+      operationId: listAirports
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by airport name or code
+          example: New York
+        - name: country
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by country code
+          example: US
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  airports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Airport'
+
+  /airports/{airportCode}:
+    get:
+      tags:
+        - Airports
+      summary: Get airport details
+      description: Retrieve details of a specific airport
+      operationId: getAirportByCode
+      parameters:
+        - name: airportCode
+          in: path
+          required: true
+          schema:
+            type: string
+          description: IATA airport code
+          example: JFK
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Airport'
+        '404':
+          description: Airport not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Airlines Resource
+  /airlines:
+    get:
+      tags:
+        - Airlines
+      summary: List airlines
+      description: Retrieve a list of airlines
+      operationId: listAirlines
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Search by airline name or code
+          example: American
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  airlines:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Airline'
+
+  /airlines/{airlineCode}:
+    get:
+      tags:
+        - Airlines
+      summary: Get airline details
+      description: Retrieve details of a specific airline
+      operationId: getAirlineByCode
+      parameters:
+        - name: airlineCode
+          in: path
+          required: true
+          schema:
+            type: string
+          description: IATA airline code
+          example: AA
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Airline'
+        '404':
+          description: Airline not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Flight:
+      type: object
+      properties:
+        flightId:
+          type: string
+          example: FL12345
+        flightNumber:
+          type: string
+          example: AA100
+        airlineCode:
+          type: string
+          example: AA
+        airlineName:
+          type: string
+          example: American Airlines
+        origin:
+          type: string
+          example: JFK
+        destination:
+          type: string
+          example: LAX
+        departureTime:
+          type: string
+          format: date-time
+          example: "2024-12-25T08:00:00Z"
+        arrivalTime:
+          type: string
+          format: date-time
+          example: "2024-12-25T11:30:00Z"
+        duration:
+          type: integer
+          description: Flight duration in minutes
+          example: 330
+        price:
+          type: number
+          format: double
+          example: 299.99
+        currency:
+          type: string
+          example: USD
+        availableSeats:
+          type: integer
+          example: 45
+        class:
+          type: string
+          enum: [economy, business, first]
+          example: economy
+
+    Booking:
+      type: object
+      properties:
+        bookingId:
+          type: string
+          example: BK789012
+        flightId:
+          type: string
+          example: FL12345
+        passengers:
+          type: array
+          items:
+            $ref: '#/components/schemas/Passenger'
+        status:
+          type: string
+          enum: [confirmed, pending, cancelled]
+          example: confirmed
+        bookingDate:
+          type: string
+          format: date-time
+          example: "2024-11-15T14:30:00Z"
+        totalPrice:
+          type: number
+          format: double
+          example: 899.97
+        currency:
+          type: string
+          example: USD
+        confirmationNumber:
+          type: string
+          example: CONF123456
+
+    BookingRequest:
+      type: object
+      required:
+        - flightId
+        - passengers
+      properties:
+        flightId:
+          type: string
+          example: FL12345
+        passengers:
+          type: array
+          items:
+            type: string
+            description: Passenger IDs
+          example: ["PASS12345", "PASS12346"]
+        class:
+          type: string
+          enum: [economy, business, first]
+          example: economy
+        specialRequests:
+          type: string
+          example: "Vegetarian meal"
+
+    Passenger:
+      type: object
+      properties:
+        passengerId:
+          type: string
+          example: PASS12345
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1990-05-15"
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        phone:
+          type: string
+          example: "+1-555-1234"
+        passportNumber:
+          type: string
+          example: P123456789
+        nationality:
+          type: string
+          example: US
+
+    PassengerRequest:
+      type: object
+      required:
+        - firstName
+        - lastName
+        - dateOfBirth
+        - email
+      properties:
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1990-05-15"
+        email:
+          type: string
+          format: email
+          example: john.doe@example.com
+        phone:
+          type: string
+          example: "+1-555-1234"
+        passportNumber:
+          type: string
+          example: P123456789
+        nationality:
+          type: string
+          example: US
+
+    Airport:
+      type: object
+      properties:
+        code:
+          type: string
+          description: IATA airport code
+          example: JFK
+        name:
+          type: string
+          example: John F. Kennedy International Airport
+        city:
+          type: string
+          example: New York
+        country:
+          type: string
+          example: United States
+        countryCode:
+          type: string
+          example: US
+        timezone:
+          type: string
+          example: America/New_York
+        latitude:
+          type: number
+          format: double
+          example: 40.6413
+        longitude:
+          type: number
+          format: double
+          example: -73.7781
+
+    Airline:
+      type: object
+      properties:
+        code:
+          type: string
+          description: IATA airline code
+          example: AA
+        name:
+          type: string
+          example: American Airlines
+        country:
+          type: string
+          example: United States
+        website:
+          type: string
+          format: uri
+          example: https://www.aa.com
+        logo:
+          type: string
+          format: uri
+          example: https://www.aa.com/logo.png
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+          example: INVALID_REQUEST
+        message:
+          type: string
+          example: The request parameters are invalid
+        details:
+          type: string
+          example: The departure date must be in the future
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
